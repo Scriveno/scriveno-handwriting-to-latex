@@ -1,0 +1,174 @@
+{
+  "info": {
+    "name": "Scriveno Developer API",
+    "description": "Submit handwritten math/physics/chemistry/plain-text pages for conversion, poll for status, list your jobs, cancel one, and download results - the full public v1 API (https://api.scriveno.com/swagger).\n\nSetup:\n1. Get a Developer API key from https://scriveno.com/developer (requires Developer access on your plan).\n2. Set the collection variable `apiKey` below to it (isk_live_...). Every request already inherits it via collection-level Bearer auth.\n3. Run \"Submit a file\" once with a real PDF/JPG/PNG - it automatically saves the returned job id into the `jobId` variable, so every other request just works with no further editing.\n\nIf you're pointing this at a non-production environment, change the `baseUrl` variable instead of editing each request.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{apiKey}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://api.scriveno.com", "type": "string", "description": "Point at a different environment (e.g. your own staging) while testing." },
+    { "key": "apiKey", "value": "", "type": "string", "description": "REQUIRED. Your Developer API key (isk_live_...) from https://scriveno.com/developer - only shown once when created." },
+    { "key": "jobId", "value": "", "type": "string", "description": "Auto-filled by \"Submit a file\"'s test script after a successful submit - only set this by hand if you want to check/cancel/download a different job." }
+  ],
+  "item": [
+    {
+      "name": "Submit a file",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 202) {",
+              "    const body = pm.response.json();",
+              "    pm.collectionVariables.set(\"jobId\", body.jobId);",
+              "    console.log(\"Saved jobId to collection variable:\", body.jobId);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Idempotency-Key",
+            "value": "",
+            "description": "Optional. A retried request with the same key (and account) returns the original job instead of creating a duplicate and re-spending quota - a fresh GUID per logical submission is a safe default. Enable this header and fill it in if you want to test that behavior.",
+            "disabled": true
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": [],
+              "description": "REQUIRED. The PDF, JPG, or PNG to convert - up to 60MB. A multi-page PDF counts as that many pages; an image is always exactly 1 page. Click \"Select Files\" to choose one."
+            },
+            {
+              "key": "webhookUrl",
+              "type": "text",
+              "value": "",
+              "description": "Optional. POSTed, HMAC-signed (X-Scriveno-Signature header), once the job reaches completed/failed/cancelled - lets you skip polling \"Get status\" entirely. Leave blank to poll instead.",
+              "disabled": true
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/convert",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "convert"]
+        },
+        "description": "Submit a PDF/JPG/PNG for conversion. Returns 202 with the new job's id, status (always \"queued\" here), page count, and queue position. Check the X-RateLimit-Limit/X-RateLimit-Remaining response headers to see your remaining daily quota - only this endpoint sets them."
+      },
+      "response": []
+    },
+    {
+      "name": "Get status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/convert/{{jobId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "convert", "{{jobId}}"]
+        },
+        "description": "Poll for a submitted job's progress. Status is one of queued/processing/completed/failed/cancelled. Once status is \"completed\", the `downloads` object in the response has a ready-to-fetch URL for each of pdf/docx/markdown/latex."
+      },
+      "response": []
+    },
+    {
+      "name": "List my jobs",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/convert?page=1&pageSize=20",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "convert"],
+          "query": [
+            { "key": "page", "value": "1", "description": "1-indexed. Defaults to 1 if omitted or <= 0." },
+            { "key": "pageSize", "value": "20", "description": "Defaults to 20 if omitted or <= 0; clamped to [1, 100]." }
+          ]
+        },
+        "description": "List your own jobs, most recent first - same per-job shape as \"Get status\", plus page/pageSize/totalCount for pagination."
+      },
+      "response": []
+    },
+    {
+      "name": "Cancel a job",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/convert/{{jobId}}/cancel",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "convert", "{{jobId}}", "cancel"]
+        },
+        "description": "Cancel a still-queued/processing job and get its entire page reservation refunded immediately. Returns the job's resulting state (now \"cancelled\") in the same shape as \"Get status\". Returns 400 already_finished if the job has already completed/failed/been cancelled."
+      },
+      "response": []
+    },
+    {
+      "name": "Download - PDF",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/convert/{{jobId}}/download/pdf",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "convert", "{{jobId}}", "download", "pdf"]
+        },
+        "description": "Download the completed job's PDF result. Only works once \"Get status\" reports completed - returns 404 not_ready otherwise. In Postman, use \"Send and Download\" to save the file."
+      },
+      "response": []
+    },
+    {
+      "name": "Download - DOCX",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/convert/{{jobId}}/download/docx",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "convert", "{{jobId}}", "download", "docx"]
+        },
+        "description": "Download the completed job's DOCX result - real, editable equations, not a picture of the math. Only works once \"Get status\" reports completed."
+      },
+      "response": []
+    },
+    {
+      "name": "Download - Markdown",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/convert/{{jobId}}/download/markdown",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "convert", "{{jobId}}", "download", "markdown"]
+        },
+        "description": "Download the completed job's Markdown result. Only works once \"Get status\" reports completed."
+      },
+      "response": []
+    },
+    {
+      "name": "Download - LaTeX",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/convert/{{jobId}}/download/latex",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "convert", "{{jobId}}", "download", "latex"]
+        },
+        "description": "Download the completed job's raw LaTeX (.tex) source. Only works once \"Get status\" reports completed."
+      },
+      "response": []
+    }
+  ]
+}
