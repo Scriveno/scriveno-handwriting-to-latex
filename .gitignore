@@ -1,0 +1,10 @@
+bin/
+obj/
+*.user
+
+# Personal overrides - keeps a real API key out of source control while appsettings.json itself
+# stays a checked-in template. See README.md.
+appsettings.Local.json
+
+# Default download destination from appsettings.json - downloaded results don't belong in source control.
+downloads/
