@@ -122,13 +122,3 @@ dotnet run -- --cancel <jobId>
 Both only need `Scriveno:ApiKey`/`Scriveno:BaseUrl` to be set - `InputFile`/`Formats`/
 `DownloadDirectory` (only relevant to the default submit-and-download job) aren't required for
 these two.
-
-## Where to go from here
-
-- Full API reference, including every error code: `{base URL}/swagger`.
-- For production use, prefer the `webhookUrl` form field on submit over polling - Scriveno POSTs a
-  signed notification to it when a job finishes. See the Developer page in your account for the
-  payload shape and how to verify the `X-Scriveno-Signature` header.
-- This sample always submits the file named by `Scriveno:InputFile` and exits after one job. For
-  batch or long-running use, wrap `RunJobAsync` in your own loop/queue rather than editing
-  `appsettings.json` between runs.
